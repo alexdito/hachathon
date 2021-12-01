@@ -113,40 +113,6 @@ func generateCsv(reports Reports)  {
 	fileCsv, err := os.Create("report-transactions.csv")
 	defer fileCsv.Close()
 
-	recordRows := [][]string{
-		{"User id",	"General sum", "Category",	"Number of category appearances", "Category sum"},
-	}
-
-
-	for _, report := range reports.Report {
-		setHead := true
-		for category, _ := range report.CategoriesSum {
-			 if setHead {
-				 recordRows = append(
-					 recordRows, []string{
-						 strconv.Itoa(report.UserId),
-						 strconv.Itoa(report.Sum),
-						 category,
-						 strconv.Itoa(report.CategoriesAmount[category]),
-						 strconv.Itoa(report.CategoriesSum[category]),
-					 },
-				 )
-				 setHead = false
-			 } else {
-				 recordRows = append(
-					 recordRows, []string{
-						 "",
-						 "",
-						 category,
-						 strconv.Itoa(report.CategoriesAmount[category]),
-						 strconv.Itoa(report.CategoriesSum[category]),
-					 },
-				 )
-			 }
-		}
-	}
-
-
 	if err != nil {
 		log.Fatalln("failed to open file", err)
 	}
@@ -154,7 +120,20 @@ func generateCsv(reports Reports)  {
 	writeCsv := csv.NewWriter(fileCsv)
 	defer writeCsv.Flush()
 
-	err = writeCsv.WriteAll(recordRows)
+	err = writeCsv.Write([]string{"User id",	"General sum", "Category",	"Number of category appearances", "Category sum"})
+
+	for _, report := range reports.Report {
+		for category, _ := range report.CategoriesSum {
+			err = writeCsv.Write([]string{
+				strconv.Itoa(report.UserId),
+				strconv.Itoa(report.Sum),
+				category,
+				strconv.Itoa(report.CategoriesAmount[category]),
+				strconv.Itoa(report.CategoriesSum[category]),
+			})
+		}
+	}
+
 	fmt.Println("Generated report-transactions.csv")
 
 	fmt.Println(fmt.Sprintf("Generate Csv: %s", time.Since(start)))

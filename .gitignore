@@ -3,3 +3,4 @@
 /app/report-transactions.csv
 /docker
 docker-composer.yml
+/app/*_transactions.json
