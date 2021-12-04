@@ -12,27 +12,21 @@ import (
 )
 
 type Row struct {
-	UserId int `json:"user_id"`
+	UserId    int    `json:"user_id"`
 	Timestamp string `json:"timestamp"`
-	Category string `json:"category"`
-	Card string `json:"card"`
-	Amount int `json:"amount"`
-}
-
-type Category struct {
-	Name string
-	Count int
-	Sum int
+	Category  string `json:"category"`
+	Card      string `json:"card"`
+	Amount    int    `json:"amount"`
 }
 
 type Reports struct {
-	Report []Report
+	Report map[int]Report
 }
 
 type Report struct {
-	UserId int
-	Sum int
-	CategoriesSum map[string]int
+	UserId           int
+	Sum              int
+	CategoriesSum    map[string]int
 	CategoriesAmount map[string]int
 }
 
@@ -48,24 +42,38 @@ func main() {
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
-	rows := []Row{}
+	var rows []Row
 
 	json.Unmarshal(byteValue, &rows)
 
 	fmt.Println(fmt.Sprintf("Parse Json: %s", time.Since(start)))
 
-	userIds := make(map[int]int)
-
-	categories := make(map[int][]Category)
+	reports := Reports{}
+	reports.Report = make(map[int]Report)
 
 	for i := 0; i < len(rows); i++ {
-		userIds[rows[i].UserId] = rows[i].UserId
 
-		categories[rows[i].UserId] = append(categories[rows[i].UserId], Category{Name: rows[i].Category, Sum: rows[i].Amount})
+		if _, isExist := reports.Report[rows[i].UserId]; !isExist {
+			reports.Report[rows[i].UserId] = Report{UserId: rows[i].UserId, CategoriesSum: make(map[string]int), CategoriesAmount: make(map[string]int)}
+		}
+
+		if _, isExist := reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category]; !isExist {
+			reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category] = 1
+		} else {
+			reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category] += 1
+		}
+
+		reports.Report[rows[i].UserId].CategoriesSum[rows[i].Category] += rows[i].Amount
 	}
 
+	for _, report := range reports.Report {
+		if thisProduct, ok := reports.Report[report.UserId]; ok {
+			thisProduct.Sum = GetSumCategories(report.CategoriesSum)
+			reports.Report[report.UserId] = thisProduct
+		}
+	}
 
-	reports := generateReport(userIds, categories)
+	fmt.Println(reports)
 
 	generateJson(reports)
 	generateCsv(reports)
@@ -83,7 +91,7 @@ func GetSumCategories(categories map[string]int) int {
 	return sum
 }
 
-func generateJson(reports Reports)  {
+func generateJson(reports Reports) {
 	start := time.Now()
 
 	result, err := json.Marshal(reports)
@@ -107,7 +115,7 @@ func generateJson(reports Reports)  {
 	fmt.Println(fmt.Sprintf("Generate Json: %s", time.Since(start)))
 }
 
-func generateCsv(reports Reports)  {
+func generateCsv(reports Reports) {
 	start := time.Now()
 
 	fileCsv, err := os.Create("report-transactions.csv")
@@ -120,7 +128,7 @@ func generateCsv(reports Reports)  {
 	writeCsv := csv.NewWriter(fileCsv)
 	defer writeCsv.Flush()
 
-	err = writeCsv.Write([]string{"User id",	"General sum", "Category",	"Number of category appearances", "Category sum"})
+	err = writeCsv.Write([]string{"User id", "General sum", "Category", "Number of category appearances", "Category sum"})
 
 	for _, report := range reports.Report {
 		for category, _ := range report.CategoriesSum {
@@ -137,31 +145,4 @@ func generateCsv(reports Reports)  {
 	fmt.Println("Generated report-transactions.csv")
 
 	fmt.Println(fmt.Sprintf("Generate Csv: %s", time.Since(start)))
-}
-
-func generateReport(userIds map[int]int, categories map[int][]Category) Reports  {
-	reports := Reports{}
-	report := Report{}
-
-	for i := 1; i <= len(userIds); i++ {
-		report.UserId = userIds[i]
-		report.CategoriesSum = make(map[string]int)
-		report.CategoriesAmount = make(map[string]int)
-
-		for j := 0; j < len(categories[userIds[i]]); j++ {
-
-			if _, isExist := report.CategoriesSum[categories[i][j].Name]; !isExist {
-				report.CategoriesSum[categories[i][j].Name] = 1
-				report.CategoriesAmount[categories[i][j].Name] = categories[i][j].Sum
-			} else {
-				report.CategoriesSum[categories[i][j].Name] += 1
-				report.CategoriesAmount[categories[i][j].Name] += categories[i][j].Sum
-			}
-		}
-
-		report.Sum = GetSumCategories(report.CategoriesAmount)
-		reports.Report = append(reports.Report, report)
-	}
-
-	return reports
 }
