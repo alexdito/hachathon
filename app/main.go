@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"sync"
 )
 
 type Row struct {
@@ -32,9 +33,9 @@ type Report struct {
 
 func (reports *Reports) CalculateSumReports()  {
 	for _, report := range reports.Report {
-		if thisProduct, ok := reports.Report[report.UserId]; ok {
-			thisProduct.Sum = GetSumCategories(report.CategoriesSum)
-			reports.Report[report.UserId] = thisProduct
+		if thisReport, ok := reports.Report[report.UserId]; ok {
+			thisReport.Sum = report.getSum()
+			reports.Report[report.UserId] = thisReport
 		}
 	}
 }
@@ -47,10 +48,13 @@ func (report *Report) getSum() int{
 	return report.Sum
 }
 
+var wg sync.WaitGroup
+
 func main() {
 	start := time.Now()
+	var rows []Row
 
-	jsonFile, err := os.Open("transactions.json")
+	jsonFile, err := os.Open("1M_transactions.json")
 	defer jsonFile.Close()
 
 	if err != nil {
@@ -58,9 +62,6 @@ func main() {
 	}
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var rows []Row
-
 	json.Unmarshal(byteValue, &rows)
 
 	fmt.Println(fmt.Sprintf("Parse Json: %s", time.Since(start)))
@@ -74,36 +75,24 @@ func main() {
 			reports.Report[rows[i].UserId] = Report{UserId: rows[i].UserId, CategoriesSum: make(map[string]int), CategoriesAmount: make(map[string]int)}
 		}
 
-		if _, isExist := reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category]; !isExist {
-			reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category] = 1
-		} else {
-			reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category] += 1
-		}
-
+		reports.Report[rows[i].UserId].CategoriesAmount[rows[i].Category] += 1
 		reports.Report[rows[i].UserId].CategoriesSum[rows[i].Category] += rows[i].Amount
 	}
 
-	reports.CalculateSumReports()
+	defer reports.CalculateSumReports()
 
-	go generateJson(reports)
-	go generateCsv(reports)
+	wg.Add(2)
+
+	go reports.GenerateJson()
+	go reports.GenerateCsv()
+
+
+	wg.Wait()
 
 	fmt.Println(fmt.Sprintf("General time: %s", time.Since(start)))
-
-	time.Sleep(time.Millisecond)
 }
 
-func GetSumCategories(categories map[string]int) int {
-	var sum int
-
-	for _, v := range categories {
-		sum += v
-	}
-
-	return sum
-}
-
-func generateJson(reports Reports) {
+func (reports *Reports) GenerateJson() {
 	start := time.Now()
 
 	result, err := json.Marshal(reports)
@@ -125,9 +114,11 @@ func generateJson(reports Reports) {
 	reportFile.Close()
 
 	fmt.Println(fmt.Sprintf("Generate Json: %s", time.Since(start)))
+
+	defer wg.Done()
 }
 
-func generateCsv(reports Reports) {
+func (reports *Reports) GenerateCsv() {
 	start := time.Now()
 
 	fileCsv, err := os.Create("report-transactions.csv")
@@ -157,4 +148,6 @@ func generateCsv(reports Reports) {
 	fmt.Println("Generated report-transactions.csv")
 
 	fmt.Println(fmt.Sprintf("Generate Csv: %s", time.Since(start)))
+
+	defer wg.Done()
 }
