@@ -73,8 +73,6 @@ func main() {
 		}
 	}
 
-	fmt.Println(reports)
-
 	generateJson(reports)
 	generateCsv(reports)
 
