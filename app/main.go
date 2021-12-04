@@ -30,6 +30,23 @@ type Report struct {
 	CategoriesAmount map[string]int
 }
 
+func (reports *Reports) CalculateSumReports()  {
+	for _, report := range reports.Report {
+		if thisProduct, ok := reports.Report[report.UserId]; ok {
+			thisProduct.Sum = GetSumCategories(report.CategoriesSum)
+			reports.Report[report.UserId] = thisProduct
+		}
+	}
+}
+
+func (report *Report) getSum() int{
+	for _, v := range report.CategoriesSum {
+		report.Sum += v
+	}
+
+	return report.Sum
+}
+
 func main() {
 	start := time.Now()
 
@@ -66,17 +83,14 @@ func main() {
 		reports.Report[rows[i].UserId].CategoriesSum[rows[i].Category] += rows[i].Amount
 	}
 
-	for _, report := range reports.Report {
-		if thisProduct, ok := reports.Report[report.UserId]; ok {
-			thisProduct.Sum = GetSumCategories(report.CategoriesSum)
-			reports.Report[report.UserId] = thisProduct
-		}
-	}
+	reports.CalculateSumReports()
 
-	generateJson(reports)
-	generateCsv(reports)
+	go generateJson(reports)
+	go generateCsv(reports)
 
 	fmt.Println(fmt.Sprintf("General time: %s", time.Since(start)))
+
+	time.Sleep(time.Millisecond)
 }
 
 func GetSumCategories(categories map[string]int) int {
