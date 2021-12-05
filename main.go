@@ -34,16 +34,16 @@ type Report struct {
 	CategoriesAmount map[string]int
 }
 
-func (reports *Reports) CalculateSumReports() {
+func (reports Reports) CalculateSumReports() {
 	for _, report := range reports.Report {
 		if thisReport, ok := reports.Report[report.UserId]; ok {
-			thisReport.Sum = report.getSum()
+			thisReport.Sum = report.GetSum()
 			reports.Report[report.UserId] = thisReport
 		}
 	}
 }
 
-func (report *Report) getSum() int {
+func (report *Report) GetSum() int {
 	for _, v := range report.CategoriesSum {
 		report.Sum += v
 	}
@@ -82,11 +82,10 @@ func main() {
 		reports.Report[rows[i].UserId].CategoriesSum[rows[i].Category] += rows[i].Amount
 	}
 
-	defer reports.CalculateSumReports()
-
+	reports.CalculateSumReports()
 	wg.Add(3)
 
-	fmt.Println(reports)
+	fmt.Println(reports.Report[1].Sum)
 
 	go reports.GenerateJson()
 	go reports.GenerateCsv()

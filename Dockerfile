@@ -8,5 +8,5 @@ COPY . .
 RUN go get -u github.com/lib/pq
 # Compile the binary exe for our app.
 RUN go build -o main .
-# Start the application.
+
 CMD ["./main"]

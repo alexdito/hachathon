@@ -20,6 +20,9 @@ services:
       context: .
     depends_on:
       - "postgres"
+    volumes:
+      - ./docker:/go/src/github.com/postgres-go
+
 
 volumes:
   dbdata: # create the volume for persisting data.
